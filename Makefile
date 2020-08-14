@@ -15,7 +15,11 @@ install:
 dev:
 	@echo "Starting Development Server"
 	#gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --reload
-	uvicorn main:app --reload
+	GOOGLE_APPLICATION_CREDENTIALS="./private/datastore-service-account.json" uvicorn main:app --reload
+
+.PHONY: test
+make test:
+	pipenv run pytest tests
 
 .PHONY: deploy
 deploy:
