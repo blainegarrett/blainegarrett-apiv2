@@ -21,3 +21,18 @@ class MediaEntity(ndb.Model):
     filename = ndb.StringProperty()
     gcs_filename = ndb.StringProperty()
     size = ndb.IntegerProperty()
+
+
+class ArticleEntity(ndb.Model):
+    @classmethod
+    def _get_kind(cls):
+        return 'BlogPost'
+
+    slug = ndb.StringProperty()
+    title = ndb.StringProperty()
+    content = ndb.StringProperty()
+    summary = ndb.StringProperty()
+    is_published = ndb.BooleanProperty()
+    created_date = ndb.DateTimeProperty(auto_now_add=True)
+    modified_date = ndb.DateTimeProperty(auto_now=True)
+    published_date = ndb.DateTimeProperty(indexed=True)

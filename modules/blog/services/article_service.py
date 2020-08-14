@@ -1,10 +1,9 @@
 # Blog Categories Service
 import logging
 from pydantic import BaseModel
-from ..entities import CategoryEntity
-from ..models import CategoryModel
+from ..entities import ArticleEntity
+from ..models import ArticleModel
 from typing import List, Optional
-import logging
 
 from google.cloud import ndb
 from core.datastore import get_resource_id_from_key, get_key_from_resource_id
@@ -17,34 +16,40 @@ client = ndb.Client()
 # Does it need to be a model?
 
 
-class CategoryModelPagedResult(BaseModel):
+class ArticleModelPagedResult(BaseModel):
     more: bool
     cursor: str
-    models: List[CategoryModel]
+    models: List[ArticleModel]
 
 # https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/appengine/standard/migration/ndb/overview/main.py
 
 
-def map_entity_to_model(e: CategoryEntity) -> CategoryModel:
-    m = CategoryModel(
+def map_entity_to_model(e: ArticleEntity) -> ArticleModel:
+    m = ArticleModel(
         resource_id=get_resource_id_from_key(e.key),
-        name=e.name,
+        title=e.title,
         slug=e.slug,
+        content=e.content,
+        summary=e.summary,
+        is_published=e.is_published,
+        created_date=e.created_date,
+        modified_date=e.modified_date,
+        published_date=e.published_date,
     )
     return m
 
 
-def get_by_slug(slug: str) -> Optional[CategoryModel]:
+def get_by_slug(slug: str) -> Optional[ArticleModel]:
     slug = slug.lower()
     with client.context():
-        q = CategoryEntity.query().filter(CategoryEntity.slug == slug)
+        q = ArticleEntity.query().filter(ArticleEntity.slug == slug)
         e = q.get()
         if (not e):
             return None
         return map_entity_to_model(e)
 
 
-def get_by_id(resource_id: str) -> Optional[CategoryModel]:
+def get_by_id(resource_id: str) -> Optional[ArticleModel]:
     with client.context():
         try:
             key = get_key_from_resource_id(resource_id)
@@ -59,8 +64,8 @@ def get_by_id(resource_id: str) -> Optional[CategoryModel]:
         return map_entity_to_model(e)
 
 
-def get_list(limit: int, cursor: str, sort: str) -> CategoryModelPagedResult:
-    models: List[CategoryModel] = []
+def get_list(limit: int, cursor: str, sort: str) -> ArticleModelPagedResult:
+    models: List[ArticleModel] = []
 
     # Query Options
     opts = {}
@@ -69,10 +74,10 @@ def get_list(limit: int, cursor: str, sort: str) -> CategoryModelPagedResult:
 
     # Run Query
     with client.context():
-        q = CategoryEntity.query()
-        q = q.order(CategoryEntity.name)
+        q = ArticleEntity.query()
+        q = q.order(-ArticleEntity.created_date)
         [results, nextCursor, more] = q.fetch_page(limit, **opts)
 
     # Map Results to Domain Model
     models = [map_entity_to_model(e) for e in results]
-    return CategoryModelPagedResult(models=models, cursor=nextCursor.urlsafe(), more=more)
+    return ArticleModelPagedResult(models=models, cursor=nextCursor.urlsafe(), more=more)
