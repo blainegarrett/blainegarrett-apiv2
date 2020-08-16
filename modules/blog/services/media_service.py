@@ -33,7 +33,7 @@ def map_entity_to_model(e: MediaEntity) -> MediaModel:
     return m
 
 
-def get_by_id(resource_id: str) -> Optional[MediaModel]:
+def get_by_id(resource_id: str) -> MediaModel:
     with client.context():
         try:
             key = get_key_from_resource_id(resource_id)

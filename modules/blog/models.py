@@ -28,3 +28,6 @@ class ArticleModel(BaseModel):
     created_date: Optional[datetime]
     modified_date: Optional[datetime]
     published_date: Optional[datetime]
+
+    legacy_image_resource: Optional[MediaModel] = None
+    legacy_image_resource_id: Optional[str]

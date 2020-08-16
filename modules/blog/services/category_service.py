@@ -34,13 +34,13 @@ def map_entity_to_model(e: CategoryEntity) -> CategoryModel:
     return m
 
 
-def get_by_slug(slug: str) -> Optional[CategoryModel]:
+def get_by_slug(slug: str) -> CategoryModel:
     slug = slug.lower()
     with client.context():
         q = CategoryEntity.query().filter(CategoryEntity.slug == slug)
         e = q.get()
         if (not e):
-            return None
+            raise DoesNotExistException('Resource Does not Exist')
         return map_entity_to_model(e)
 
 
