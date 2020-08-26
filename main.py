@@ -1,3 +1,11 @@
+import json
+import logging
+import functools
+from dotenv import load_dotenv
+
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import UJSONResponse
+from json import dumps
 from flask import Flask, escape, request
 from fastapi import FastAPI, Request
 from fastapi.middleware.wsgi import WSGIMiddleware
@@ -16,10 +24,14 @@ from modules.blog.handlers.rest.resource_types import CategoryResourceVerbose
 from modules.blog.handlers.rest.resource_types import MediaResourceVerbose
 from modules.blog.handlers.rest.resource_types import ArticleResource, ArticleResourceVerbose, TArticleResource
 from modules.blog.models import ArticleModel, CategoryModel, MediaModel
+from utils import ubercache
+
+load_dotenv()
+
 
 # TODO: Power of environment variables...
 origins = ["https://blainegarrett.com"]
-orgin_regexp = r'(http.*://www.blainegarrett.com)|(htt.*://blaine-garrett.appspot.com)|http://localhost:.*'
+orgin_regexp = r'(http.*://www.blainegarrett.com)|(http.*://blaine-garrett.appspot.com)|(.*vercel.app)|http://localhost:.*'
 
 flask_app = Flask(__name__)
 app = FastAPI()
@@ -73,8 +85,83 @@ async def v2_404_exception_handler(request: Request, exc: DoesNotExistException)
     )
 
 
-@app.get("/api/rest/v2.0/media")
-def get_media(limit: int = 10, cursor: str = None, sort: str = 'name'):
+@app.get('/redis/flush/all')
+def redisTests():
+    deleted_keys = ubercache.cache_delete_all()
+    return deleted_keys
+
+#     os.environ.get('REDIS_HOST', 'localhost')
+#     redis_host = os.environ.get('REDIS_HOST', 'localhost')
+#     redis_port = int(os.environ.get('REDIS_PORT', 6666))
+#     redis_password = ''
+
+#     import logging
+#     redis_client = redis.StrictRedis(decode_responses=True,
+#                                      host=redis_host, port=redis_port)
+
+#     logging.error('-------------------------')
+#     # logging.error(redis_client.delete('counterx'))
+#     logging.error(redis_client.get('counterx'))
+
+#     cache_val: str = ubercache.cache_get('counterx')
+#     if (not cache_val):
+#         counter = 999
+#     else:
+#         counter = int(cache_val)
+#     ubercache.cache_set('counterx', counter + 1, 30, 'counters')
+
+#     # ubercache.cache_invalidate('counters')
+
+#     # redis_client.delete('counter')
+#     # redis_client.flushall()
+#     # redis_client.delete("asdfs")
+#     midnight_cst = 6000
+#     value = redis_client.incr(0)
+#     #redis_client.set("asdfs", "sdf", ex=midnight_cst)
+#     # key = ''.join(choice(ascii_uppercase) for i in range(30))
+#     # val = ''.join(choice(ascii_uppercase) for i in range(30))
+#     # value = redis_client.set(key, val)
+#     # value = redis_client.set(key + "d", val)
+#     # value = redis_client.set(key + "c", val)
+#     # value = redis_client.set(key + "b", val)
+#     # value = redis_client.set(key + "a", val)
+
+#     return 'Value is' + str(counter)
+
+
+def create_param_hash(**kwargs) -> str:
+    import json
+    import hashlib
+    string = json.dumps(kwargs, sort_keys=True)
+
+    m = hashlib.sha224(string.encode())
+    return m.hexdigest()
+
+
+def coolcache(path):
+    def decr(f):
+        @app.get(path)
+        @functools.wraps(f)
+        def html(request: Request, *args, **kwargs):
+            key = create_request_key(path, request)
+            cached_val = ubercache.cache_get(key)
+            if (cached_val):
+                decoded_resp = json.loads(cached_val)
+                # logging.error('Cache hit!!!!' + path)
+                return decoded_resp
+
+            # logging.error('Cache miss' + path)
+            resp = f(request, *args, **kwargs)
+            encoded_payload = jsonable_encoder(resp)
+            encoded_str = json.dumps(encoded_payload)
+            ubercache.cache_set(key, encoded_str)
+            return resp
+    return decr
+
+
+# @app.get("/api/rest/v2.0/media")
+@coolcache("/api/rest/v2.0/media")
+def get_media(request: Request, limit: int = 10, cursor: str = None, sort: str = 'name'):
     # TODO: Check cache
     # TODO: Error Handling
     # TODO: Sorting Not Implemented
@@ -87,14 +174,16 @@ def get_media(limit: int = 10, cursor: str = None, sort: str = 'name'):
     return {'results': resources, 'more': result.more, 'cursor': result.cursor}
 
 
-@app.get("/api/rest/v2.0/media/{resource_id}")
-def get_category(resource_id):
+# @app.get("/api/rest/v2.0/media/{resource_id}")
+@coolcache("/api/rest/v2.0/media/{resource_id}")
+def get_category(request: Request, resource_id):
     m = media_service.get_by_id(resource_id)
     return {'results': create_media_resource(m, True)}
 
 
-@app.get("/api/rest/v2.0/categories")
-def get_categories(limit: int = 10, cursor: str = None, sort: str = 'name', get_by_slug: str = None):
+@coolcache("/api/rest/v2.0/categories")
+# @app.get("/api/rest/v2.0/categories")
+def get_categories(request: Request, limit: int = 10, cursor: str = None, sort: str = 'name', get_by_slug: str = None):
     # TODO: Check cache
     # TODO: Error Handling
     # TODO: Sorting Not Implemented
@@ -115,14 +204,23 @@ def get_categories(limit: int = 10, cursor: str = None, sort: str = 'name', get_
     return {'results': resources, 'more': result.more, 'cursor': result.cursor}
 
 
-@app.get("/api/rest/v2.0/categories/{resource_id}")
-def get_category(resource_id):
+# @app.get("/api/rest/v2.0/categories/{resource_id}")
+@coolcache("/api/rest/v2.0/categories/{resource_id}")
+def get_category(request: Request, resource_id):
     m = category_service.get_by_id(resource_id)
     return {'results': create_category_resource(m, True)}
 
 
-@app.get("/api/rest/v2.0/posts")
-def get_categories(category_slug: Optional[str] = None, limit: int = 10, cursor: str = None, sort: str = 'name', get_by_slug: str = None, verbose: bool = False, is_published: bool = True):
+def create_request_key(prefix: str, request: Request):
+    dict1 = request.query_params.__dict__.get('_dict', {})
+    dict2 = request.path_params
+    suffix = create_param_hash(**{**dict1, **dict2})
+    return "{}:{}".format(prefix, suffix)
+
+
+# @app.get("/api/rest/v2.0/posts")
+@coolcache("/api/rest/v2.0/posts")
+def get_posts(request: Request, category_slug: Optional[str] = None, limit: int = 10, cursor: str = None, sort: str = 'name', get_by_slug: str = None, verbose: bool = False, is_published: bool = True):
     # TODO: Check cache
     # TODO: Error Handling
     # TODO: Sorting Not Implemented
@@ -148,14 +246,14 @@ def get_categories(category_slug: Optional[str] = None, limit: int = 10, cursor:
         limit, cursor or "", sort, is_published, category_resource_id)
     resources: List[ArticleResource] = []
     for m in result.models:
-        # logging.error(m)
         resources.append(create_article_resource(m, verbose))
 
     return {'results': resources, 'more': result.more, 'cursor': result.cursor}
 
 
-@app.get("/api/rest/v2.0/posts/{resource_id}")
-def get_article(resource_id):
+# @app.get("/api/rest/v2.0/posts/{resource_id}")
+@coolcache("/api/rest/v2.0/posts/{resource_id}")
+def get_article(request: Request, resource_id):
     m: ArticleModel = article_service.get_by_id(resource_id)
     r: ArticleResource = create_article_resource(m, verbose=True)
     return Response[TArticleResource](results=r)

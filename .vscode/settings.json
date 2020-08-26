@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "/Users/blainegarrett/workspaces/blainegarrett/blainegarrett-apiv2/env/bin/python3",
+    "python.pythonPath": "./env/bin/python3",
     "[python]": {
         "editor.tabSize": 4,
         "editor.insertSpaces": true,
@@ -23,6 +23,7 @@
     "files.exclude": {
         "**/*.pyc": {"when": "$(basename).py"}, 
         "**/__pycache__": true,
-        "**/.pytest_cache": true
+        "**/.pytest_cache": true,
+        "**/.DS_Store": true,
     }
 }

@@ -14,13 +14,18 @@ install:
 .PHONY: run
 dev:
 	@echo "Starting Development Server"
-	#gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --reload
-	GOOGLE_APPLICATION_CREDENTIALS="./private/datastore-service-account.json" uvicorn main:app --reload
+	# gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --reload
+	GOOGLE_APPLICATION_CREDENTIALS="./private/datastore-service-account.json" REDIS_HOST=127.0.0.1 REDIS_PORT=6379 REDIS_PASSWORD="" uvicorn main:app --reload
+
+.PHONY: redis 
+redis:
+	docker run  -p 127.0.0.1:6379:6379/tcp --name container-redis-test -d redis
 
 .PHONY: test
-make test:
+test:
 	pipenv run pytest tests
 
 .PHONY: deploy
 deploy:
-	gcloud app deploy --project blaine-garrett --version ooo
+	gcloud app deploy --project blaine-garrett --version $(filter-out $@,$(MAKECMDGOALS))
+

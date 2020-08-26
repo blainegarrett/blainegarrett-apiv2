@@ -15,7 +15,8 @@ gunicorn ="*"
 uvicorn ="*"
 Flask ="*"
 google-cloud-ndb = "*"
-
+redis = "*"
+python-dotenv = "*"
 
 [requires]
 python_version = "3.7"

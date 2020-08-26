@@ -92,7 +92,7 @@ def get_by_slug(slug: str) -> Optional[ArticleModel]:
         e = q.get()
         if (not e):
             return None
-        return map_entity_to_model(e)
+        return map_entity_to_model(bulk_dereference([e])[0])
 
 
 def get_by_id(resource_id: str) -> ArticleModel:
@@ -107,7 +107,7 @@ def get_by_id(resource_id: str) -> ArticleModel:
         if (not e):
             raise DoesNotExistException('Resource Does not Exist')
 
-        return map_entity_to_model(e)
+        return map_entity_to_model(bulk_dereference([e])[0])
 
 
 def get_list(limit: int, cursor: str, sort: str, is_published: bool, category_resource_id: Optional[str]) -> ArticleModelPagedResult:
